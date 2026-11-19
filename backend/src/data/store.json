@@ -1,6 +1,64 @@
 {
   "inquiries": [
     {
+      "id": "a6dfab30-7096-4da8-816d-e211f245ed92",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "subject": "Urgent refund needed",
+      "message": "You double charged my credit card, refund me right now or I'll file a chargeback!",
+      "contactId": "3f31af68-ceae-472e-be57-f0e58595e372",
+      "classification": {
+        "category": "billing",
+        "priority": "high",
+        "requiresApproval": true,
+        "confidence": 0.65,
+        "method": "rules-demo"
+      },
+      "draft": "Hi John Doe,\n\nThanks for contacting us about \"Urgent refund needed\". Our billing team will review the details and follow up.\n\nBest,\nCustomer Support Team",
+      "status": "approved",
+      "createdAt": "2026-11-19T11:13:31.952Z",
+      "updatedAt": "2026-11-19T11:13:43.150Z"
+    },
+    {
+      "id": "8bd94a15-b9aa-4c8f-878f-e138ebef96dc",
+      "name": "Jagmohan Singh",
+      "email": "jagmohan.singh@skyfish.dev",
+      "subject": "SFSDFDS",
+      "message": "SDFSDFSDFDSFSDFDSF",
+      "contactId": "f4c13047-0e92-4361-8dd6-2cfa55042d90",
+      "classification": {
+        "category": "general",
+        "priority": "normal",
+        "requiresApproval": false,
+        "confidence": 0.65,
+        "method": "rules-demo"
+      },
+      "draft": "Hello, this is a custom edited draft by human!",
+      "status": "draft_ready",
+      "createdAt": "2026-11-19T11:11:46.618Z",
+      "updatedAt": "2026-11-19T11:25:40.807Z",
+      "isEdited": true
+    },
+    {
+      "id": "72f6e81e-cd9c-4adc-8900-8d5cb710f3f9",
+      "name": "Jagmohan Singh",
+      "email": "jagmohan.singh@skyfish.dev",
+      "subject": "wokr",
+      "message": "DFGFSDGFSD",
+      "contactId": "f4c13047-0e92-4361-8dd6-2cfa55042d90",
+      "classification": {
+        "category": "general",
+        "priority": "normal",
+        "requiresApproval": false,
+        "confidence": 0.65,
+        "method": "rules-demo"
+      },
+      "draft": "Hi Jagmohan Singh,\n\nThanks for contacting us about \"wokr\". Our team will review your request and follow up.\n\nBest,\nCustomer Support Team",
+      "status": "draft_ready",
+      "createdAt": "2026-11-19T11:11:38.114Z",
+      "updatedAt": "2026-11-19T11:11:38.114Z"
+    },
+    {
       "id": "777a75d4-4319-4493-a00a-9c4b674ba040",
       "name": "sukdha",
       "email": "sukda@skyfish.dev",
@@ -41,6 +99,13 @@
   ],
   "contacts": [
     {
+      "id": "3f31af68-ceae-472e-be57-f0e58595e372",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "createdAt": "2026-11-19T11:13:31.952Z",
+      "updatedAt": "2026-11-19T11:13:31.952Z"
+    },
+    {
       "id": "66a8380a-0b01-4ba6-bbd6-35826a2b84e6",
       "name": "sukdha",
       "email": "sukda@skyfish.dev",
@@ -52,10 +117,62 @@
       "name": "Jagmohan Singh",
       "email": "jagmohan.singh@skyfish.dev",
       "createdAt": "2026-11-19T10:42:19.844Z",
-      "updatedAt": "2026-11-19T10:42:19.844Z"
+      "updatedAt": "2026-11-19T11:11:46.618Z"
     }
   ],
   "audit": [
+    {
+      "id": "0bb1eab7-2960-4958-9cac-d2a75e67ebff",
+      "type": "draft_edited",
+      "entityId": "8bd94a15-b9aa-4c8f-878f-e138ebef96dc",
+      "detail": {
+        "actor": "human-editor"
+      },
+      "at": "2026-11-19T11:25:40.808Z"
+    },
+    {
+      "id": "a67b0455-1aa3-48a5-8c69-63d4b0070004",
+      "type": "draft_approved",
+      "entityId": "a6dfab30-7096-4da8-816d-e211f245ed92",
+      "detail": {
+        "reason": "",
+        "actor": "human-reviewer"
+      },
+      "at": "2026-11-19T11:13:43.150Z"
+    },
+    {
+      "id": "a6d3a3a1-6279-43ef-a295-eb75b5f41db3",
+      "type": "inquiry_created",
+      "entityId": "a6dfab30-7096-4da8-816d-e211f245ed92",
+      "detail": {
+        "category": "billing",
+        "priority": "high",
+        "status": "pending_approval"
+      },
+      "at": "2026-11-19T11:13:31.952Z"
+    },
+    {
+      "id": "f91cd3e0-f28c-4706-acb8-8370e9e0109d",
+      "type": "inquiry_created",
+      "entityId": "8bd94a15-b9aa-4c8f-878f-e138ebef96dc",
+      "detail": {
+        "category": "general",
+        "priority": "normal",
+        "status": "draft_ready"
+      },
+      "at": "2026-11-19T11:11:46.618Z"
+    },
+    {
+      "id": "a6539c71-1499-4503-9907-89a058e0b2d8",
+      "type": "inquiry_created",
+      "entityId": "72f6e81e-cd9c-4adc-8900-8d5cb710f3f9",
+      "detail": {
+        "category": "general",
+        "priority": "normal",
+        "status": "draft_ready"
+      },
+      "at": "2026-11-19T11:11:38.116Z"
+    },
     {
       "id": "eaea275e-2e80-4d05-8b98-ff1b3799cb5d",
       "type": "inquiry_created",

@@ -14,6 +14,9 @@ import {
   Menu,
   ChevronDown,
   ChevronUp,
+  Edit3,
+  Save,
+  RotateCcw,
 } from 'lucide-react';
 import './styles/app.css';
 
@@ -24,6 +27,8 @@ interface Classification {
   priority: 'high' | 'normal';
   requiresApproval: boolean;
   confidence: number;
+  method?: string;
+  sentiment?: string;
 }
 
 interface Inquiry {
@@ -36,6 +41,7 @@ interface Inquiry {
   status: 'draft_ready' | 'pending_approval' | 'approved' | 'rejected';
   classification: Classification;
   decisionReason?: string;
+  isEdited?: boolean;
   createdAt: string;
 }
 
@@ -58,6 +64,11 @@ function App() {
   const [feedback, setFeedback] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Draft editing state
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [draftEditText, setDraftEditText] = useState<string>('');
+  const [savingDraft, setSavingDraft] = useState(false);
 
   // Fetch all inquiries and metrics
   async function fetchData() {
@@ -102,7 +113,7 @@ function App() {
       }
 
       setForm(initialForm);
-      setFeedback({ text: 'Inquiry received and processed successfully!', type: 'success' });
+      setFeedback({ text: 'Inquiry analyzed and draft created successfully!', type: 'success' });
       await fetchData();
     } catch (err) {
       setFeedback({ text: (err as Error).message, type: 'error' });
@@ -132,6 +143,35 @@ function App() {
       await fetchData();
     } catch (err) {
       setFeedback({ text: (err as Error).message, type: 'error' });
+    }
+  }
+
+  // Start editing a draft
+  function startEditingDraft(item: Inquiry) {
+    setEditingDraftId(item.id);
+    setDraftEditText(item.draft);
+  }
+
+  // Save edited draft
+  async function handleSaveDraft(id: string) {
+    if (!draftEditText.trim()) return;
+    setSavingDraft(true);
+
+    try {
+      const res = await fetch(`${API}/api/inquiries/${id}/draft`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: draftEditText }),
+      });
+
+      if (!res.ok) throw new Error('Failed to save draft edits.');
+      setEditingDraftId(null);
+      setFeedback({ text: 'Draft updated successfully by human editor!', type: 'success' });
+      await fetchData();
+    } catch (err) {
+      setFeedback({ text: (err as Error).message, type: 'error' });
+    } finally {
+      setSavingDraft(false);
     }
   }
 
@@ -184,7 +224,7 @@ function App() {
         <div className="sidebar-footer">
           <div className="safety-note">
             <div className="safety-tag">HUMAN-IN-THE-LOOP</div>
-            <p>High-risk & sensitive requests require manual sign-off before sending.</p>
+            <p>Smart AI drafts with human edit & approval safeguards before delivery.</p>
           </div>
         </div>
       </aside>
@@ -199,7 +239,7 @@ function App() {
             </button>
             <div>
               <h1>Operations Command</h1>
-              <p>Autonomous intake, intelligent classification, and human approval safeguards.</p>
+              <p>Autonomous triage, AI response drafts, and human-in-the-loop review.</p>
             </div>
           </div>
           <div className="header-actions">
@@ -274,7 +314,7 @@ function App() {
             <div className="card-header">
               <div>
                 <h2>Customer Intake</h2>
-                <p>Submit inquiries to trigger AI classification & automated response drafting.</p>
+                <p>Submit inquiries to trigger AI classification & contextual response drafting.</p>
               </div>
             </div>
 
@@ -333,7 +373,7 @@ function App() {
 
               <button type="submit" className="btn-primary" disabled={submitting}>
                 <Send size={16} />
-                <span>{submitting ? 'Analyzing & Routing...' : 'Process Inquiry'}</span>
+                <span>{submitting ? 'Analyzing with AI...' : 'Process Inquiry'}</span>
               </button>
             </form>
           </section>
@@ -355,13 +395,15 @@ function App() {
                   <Inbox size={36} />
                   <p>
                     {activeTab === 'approvals'
-                      ? 'No inquiries pending approval. Great job!'
+                      ? 'No inquiries pending approval. All caught up!'
                       : 'No inquiries recorded yet. Submit your first inquiry to test.'}
                   </p>
                 </div>
               ) : (
                 displayedList.map((item) => {
                   const isExpanded = expandedId === item.id;
+                  const isEditingThisDraft = editingDraftId === item.id;
+
                   return (
                     <article className="inquiry-card" key={item.id}>
                       <div className="inquiry-header">
@@ -381,6 +423,10 @@ function App() {
                         <span className={`tag priority ${item.classification.priority}`}>
                           {item.classification.priority} priority
                         </span>
+                        {item.classification.method && (
+                          <span className="tag engine">{item.classification.method}</span>
+                        )}
+                        {item.isEdited && <span className="tag edited">Human Edited</span>}
                         <span className="time-ago">
                           {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
@@ -405,11 +451,54 @@ function App() {
                             </div>
 
                             <div className="draft-box">
-                              <div className="draft-title">
-                                <Sparkles size={14} />
-                                <span>AI Generated Response Draft</span>
+                              <div className="draft-header">
+                                <div className="draft-title">
+                                  <Sparkles size={14} />
+                                  <span>AI Generated Response Draft</span>
+                                </div>
+                                {item.status !== 'approved' && !isEditingThisDraft && (
+                                  <button
+                                    type="button"
+                                    className="btn-edit-draft"
+                                    onClick={() => startEditingDraft(item)}
+                                  >
+                                    <Edit3 size={13} />
+                                    <span>Edit Draft</span>
+                                  </button>
+                                )}
                               </div>
-                              <pre>{item.draft}</pre>
+
+                              {isEditingThisDraft ? (
+                                <div className="draft-editor">
+                                  <textarea
+                                    className="draft-textarea"
+                                    rows={6}
+                                    value={draftEditText}
+                                    onChange={(e) => setDraftEditText(e.target.value)}
+                                  />
+                                  <div className="editor-actions">
+                                    <button
+                                      type="button"
+                                      className="btn-save-draft"
+                                      disabled={savingDraft}
+                                      onClick={() => void handleSaveDraft(item.id)}
+                                    >
+                                      <Save size={13} />
+                                      <span>{savingDraft ? 'Saving...' : 'Save Draft'}</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn-cancel-draft"
+                                      onClick={() => setEditingDraftId(null)}
+                                    >
+                                      <RotateCcw size={13} />
+                                      <span>Cancel</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <pre>{item.draft}</pre>
+                              )}
                             </div>
 
                             {item.decisionReason && (

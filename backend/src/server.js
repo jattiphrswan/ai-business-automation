@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import { readStore, writeStore, logAudit } from './services/store.js';
-import { classify, draftResponse } from './services/automation.js';
+import { analyzeAndDraft } from './services/ai.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -23,8 +23,16 @@ const inquirySchema = z.object({
   message: z.string().trim().min(10, 'Message must be at least 10 characters').max(5000),
 });
 
+const draftEditSchema = z.object({
+  draft: z.string().trim().min(5, 'Draft must be at least 5 characters').max(10000),
+});
+
 // System & Metrics
-app.get('/api/health', (_req, res) => res.json({ ok: true, mode: 'demo', timestamp: new Date().toISOString() }));
+app.get('/api/health', (_req, res) => res.json({
+  ok: true,
+  mode: process.env.GEMINI_API_KEY ? 'gemini-ai' : process.env.OPENAI_API_KEY ? 'openai' : 'smart-rules',
+  timestamp: new Date().toISOString(),
+}));
 
 app.get('/api/dashboard', (_req, res) => {
   const store = readStore();
@@ -47,56 +55,91 @@ app.get('/api/approvals', (_req, res) => {
 });
 app.get('/api/audit', (_req, res) => res.json(readStore().audit));
 
-// Create Inquiry (Intake -> Classify -> Local CRM Upsert -> Draft Response)
-app.post('/api/inquiries', (req, res) => {
-  const parsed = inquirySchema.safeParse(req.body);
+// Create Inquiry (Intake -> AI Analyze & Draft -> Local CRM Upsert)
+app.post('/api/inquiries', async (req, res, next) => {
+  try {
+    const parsed = inquirySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Validation failed', issues: parsed.error.flatten() });
+    }
+
+    const store = readStore();
+    const data = parsed.data;
+    const now = new Date().toISOString();
+
+    // Upsert CRM contact
+    let contact = store.contacts.find((c) => c.email.toLowerCase() === data.email.toLowerCase());
+    if (!contact) {
+      contact = { id: crypto.randomUUID(), name: data.name, email: data.email, createdAt: now, updatedAt: now };
+      store.contacts.unshift(contact);
+    } else {
+      contact.name = data.name;
+      contact.updatedAt = now;
+    }
+
+    // AI Analysis & Response Drafting
+    const aiResult = await analyzeAndDraft(data.name, data.subject, data.message);
+    const status = aiResult.requiresApproval ? 'pending_approval' : 'draft_ready';
+
+    const inquiry = {
+      id: crypto.randomUUID(),
+      ...data,
+      contactId: contact.id,
+      classification: {
+        category: aiResult.category,
+        priority: aiResult.priority,
+        requiresApproval: aiResult.requiresApproval,
+        sentiment: aiResult.sentiment,
+        confidence: aiResult.confidence,
+        method: aiResult.method,
+      },
+      draft: aiResult.draft,
+      status,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    store.inquiries.unshift(inquiry);
+
+    logAudit(store, 'inquiry_created', inquiry.id, {
+      category: aiResult.category,
+      priority: aiResult.priority,
+      method: aiResult.method,
+      status: inquiry.status,
+    });
+
+    writeStore(store);
+    res.status(201).json(inquiry);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Edit Draft Before Approval
+app.patch('/api/inquiries/:id/draft', (req, res) => {
+  const parsed = draftEditSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: 'Validation failed', issues: parsed.error.flatten() });
+    return res.status(400).json({ error: 'Invalid draft content', issues: parsed.error.flatten() });
   }
 
   const store = readStore();
-  const data = parsed.data;
-  const now = new Date().toISOString();
+  const inquiry = store.inquiries.find((item) => item.id === req.params.id);
 
-  // Upsert CRM contact
-  let contact = store.contacts.find((c) => c.email.toLowerCase() === data.email.toLowerCase());
-  if (!contact) {
-    contact = { id: crypto.randomUUID(), name: data.name, email: data.email, createdAt: now, updatedAt: now };
-    store.contacts.unshift(contact);
-  } else {
-    contact.name = data.name;
-    contact.updatedAt = now;
+  if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' });
+  if (inquiry.status === 'approved') {
+    return res.status(400).json({ error: 'Cannot edit an already approved draft' });
   }
 
-  // Classify inquiry & draft response
-  const classification = classify(data.subject, data.message);
-  const status = classification.requiresApproval ? 'pending_approval' : 'draft_ready';
+  inquiry.draft = parsed.data.draft;
+  inquiry.updatedAt = new Date().toISOString();
+  inquiry.isEdited = true;
 
-  const inquiry = {
-    id: crypto.randomUUID(),
-    ...data,
-    contactId: contact.id,
-    classification,
-    draft: '',
-    status,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  inquiry.draft = draftResponse(inquiry, classification);
-  store.inquiries.unshift(inquiry);
-
-  logAudit(store, 'inquiry_created', inquiry.id, {
-    category: classification.category,
-    priority: classification.priority,
-    status: inquiry.status,
-  });
-
+  logAudit(store, 'draft_edited', inquiry.id, { actor: 'human-editor' });
   writeStore(store);
-  res.status(201).json(inquiry);
+  res.json(inquiry);
 });
 
-// Human-in-the-loop decisions (Approve / Reject)
+// Human Decisions (Approve / Reject)
 function handleDecision(req, res, decision) {
   const store = readStore();
   const inquiry = store.inquiries.find((item) => item.id === req.params.id);
@@ -123,7 +166,7 @@ function handleDecision(req, res, decision) {
 app.post('/api/approvals/:id/approve', (req, res) => handleDecision(req, res, 'approved'));
 app.post('/api/approvals/:id/reject', (req, res) => handleDecision(req, res, 'rejected'));
 
-// Error handler
+// Error handling
 app.use((err, _req, res, _next) => {
   console.error('API Error:', err);
   res.status(500).json({ error: 'Internal server error' });
