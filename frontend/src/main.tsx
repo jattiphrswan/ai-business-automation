@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Inbox,
@@ -20,7 +20,9 @@ import {
   ShieldCheck,
   FileText,
   MailCheck,
-  Calendar,
+  Search,
+  Download,
+  Filter,
 } from 'lucide-react';
 import './styles/app.css';
 
@@ -90,6 +92,11 @@ function App() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedContactEmail, setSelectedContactEmail] = useState<string | null>(null);
+
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
   // Draft editing state
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
@@ -220,12 +227,65 @@ function App() {
     }
   }
 
-  const displayedList =
-    activeTab === 'approvals'
-      ? inquiries.filter((item) => item.status === 'pending_approval')
-      : selectedContactEmail
-      ? inquiries.filter((item) => item.email.toLowerCase() === selectedContactEmail.toLowerCase())
-      : inquiries;
+  // Export filtered inquiries to CSV
+  function handleExportCSV() {
+    if (displayedList.length === 0) return;
+
+    const headers = ['ID', 'Name', 'Email', 'Subject', 'Category', 'Priority', 'Status', 'Created At', 'Sent At'];
+    const rows = displayedList.map((item) => [
+      item.id,
+      `"${item.name.replace(/"/g, '""')}"`,
+      `"${item.email.replace(/"/g, '""')}"`,
+      `"${item.subject.replace(/"/g, '""')}"`,
+      item.classification.category,
+      item.classification.priority,
+      item.status,
+      item.createdAt,
+      item.sentAt || '',
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `flowpilot_inquiries_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // Filter & Search Logic
+  const displayedList = useMemo(() => {
+    let list = inquiries;
+
+    if (activeTab === 'approvals') {
+      list = list.filter((item) => item.status === 'pending_approval');
+    } else if (selectedContactEmail) {
+      list = list.filter((item) => item.email.toLowerCase() === selectedContactEmail.toLowerCase());
+    }
+
+    if (selectedStatus !== 'all' && activeTab !== 'approvals') {
+      list = list.filter((item) => item.status === selectedStatus);
+    }
+
+    if (selectedCategory !== 'all') {
+      list = list.filter((item) => item.classification.category.toLowerCase() === selectedCategory.toLowerCase());
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (item) =>
+          item.name.toLowerCase().includes(q) ||
+          item.email.toLowerCase().includes(q) ||
+          item.subject.toLowerCase().includes(q) ||
+          item.message.toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  }, [inquiries, activeTab, selectedContactEmail, selectedStatus, selectedCategory, searchQuery]);
 
   return (
     <div className="app-container">
@@ -318,6 +378,10 @@ function App() {
             </div>
           </div>
           <div className="header-actions">
+            <button className="btn-secondary" onClick={handleExportCSV} title="Export current list to CSV">
+              <Download size={15} />
+              <span>Export CSV</span>
+            </button>
             <button className="btn-secondary" onClick={() => void fetchData()} disabled={loading}>
               <RefreshCw size={15} className={loading ? 'spin' : ''} />
               <span>Refresh</span>
@@ -448,7 +512,7 @@ function App() {
             </div>
           </section>
         ) : (
-          /* VIEW 3: INQUIRIES & APPROVALS (DEFAULT DUAL COLUMN) */
+          /* VIEW 3: INQUIRIES & APPROVALS (DUAL COLUMN WITH SEARCH & FILTERS) */
           <div className="content-columns">
             {/* Customer Intake Form */}
             <section className="card form-panel">
@@ -531,7 +595,7 @@ function App() {
                       : 'Activity Stream'}
                   </h2>
                   <p>
-                    Showing {displayedList.length} {displayedList.length === 1 ? 'item' : 'items'}
+                    Showing {displayedList.length} of {inquiries.length} {inquiries.length === 1 ? 'item' : 'items'}
                   </p>
                 </div>
                 {selectedContactEmail && (
@@ -541,12 +605,62 @@ function App() {
                 )}
               </div>
 
+              {/* Search Bar & Filter Controls */}
+              <div className="filter-toolbar">
+                <div className="search-box">
+                  <Search size={15} />
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, subject, or message..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button className="search-clear" onClick={() => setSearchQuery('')}>
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                {activeTab !== 'approvals' && (
+                  <div className="filter-chips">
+                    <div className="chip-group">
+                      <span className="chip-label">Category:</span>
+                      {['all', 'billing', 'sales', 'support', 'account', 'general'].map((cat) => (
+                        <button
+                          key={cat}
+                          className={`chip ${selectedCategory === cat ? 'active' : ''}`}
+                          onClick={() => setSelectedCategory(cat)}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="chip-group">
+                      <span className="chip-label">Status:</span>
+                      {['all', 'draft_ready', 'pending_approval', 'approved', 'sent'].map((st) => (
+                        <button
+                          key={st}
+                          className={`chip ${selectedStatus === st ? 'active' : ''}`}
+                          onClick={() => setSelectedStatus(st)}
+                        >
+                          {st.replace('_', ' ')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="items-list">
                 {displayedList.length === 0 ? (
                   <div className="empty-state">
                     <Inbox size={36} />
                     <p>
-                      {activeTab === 'approvals'
+                      {searchQuery || selectedCategory !== 'all' || selectedStatus !== 'all'
+                        ? 'No inquiries match your current search/filter criteria.'
+                        : activeTab === 'approvals'
                         ? 'No inquiries pending approval. All caught up!'
                         : 'No inquiries recorded yet. Submit your first inquiry to test.'}
                     </p>
