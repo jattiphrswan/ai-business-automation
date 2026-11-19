@@ -3,7 +3,6 @@
 ai-business-automation/
 ├── README.md
 ├── PROJECT_STRUCTURE.md
-├── docs/                   # 15 project specification and operations documents
 ├── backend/
 │   ├── package.json
 │   ├── .env.example
