@@ -15,9 +15,10 @@
         "method": "rules-demo"
       },
       "draft": "Hi John Doe,\n\nThanks for contacting us about \"Urgent refund needed\". Our billing team will review the details and follow up.\n\nBest,\nCustomer Support Team",
-      "status": "approved",
+      "status": "sent",
       "createdAt": "2026-11-19T11:13:31.952Z",
-      "updatedAt": "2026-11-19T11:13:43.150Z"
+      "updatedAt": "2026-11-19T11:37:02.629Z",
+      "sentAt": "2026-11-19T11:37:02.629Z"
     },
     {
       "id": "8bd94a15-b9aa-4c8f-878f-e138ebef96dc",
@@ -36,7 +37,7 @@
       "draft": "Hello, this is a custom edited draft by human!",
       "status": "draft_ready",
       "createdAt": "2026-11-19T11:11:46.618Z",
-      "updatedAt": "2026-11-19T11:25:40.807Z",
+      "updatedAt": "2026-11-19T11:34:10.638Z",
       "isEdited": true
     },
     {
@@ -121,6 +122,25 @@
     }
   ],
   "audit": [
+    {
+      "id": "a005ba53-737a-4683-ac9b-891945dc26d0",
+      "type": "response_sent",
+      "entityId": "a6dfab30-7096-4da8-816d-e211f245ed92",
+      "detail": {
+        "recipient": "john@example.com",
+        "actor": "system-dispatcher"
+      },
+      "at": "2026-11-19T11:37:02.629Z"
+    },
+    {
+      "id": "305e3fa5-b7b3-47a3-b124-dad428407242",
+      "type": "draft_edited",
+      "entityId": "8bd94a15-b9aa-4c8f-878f-e138ebef96dc",
+      "detail": {
+        "actor": "human-editor"
+      },
+      "at": "2026-11-19T11:34:10.638Z"
+    },
     {
       "id": "0bb1eab7-2960-4958-9cac-d2a75e67ebff",
       "type": "draft_edited",

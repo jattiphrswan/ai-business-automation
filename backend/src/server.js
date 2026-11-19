@@ -15,7 +15,7 @@ app.use(helmet());
 app.use(cors({ origin: frontendOrigin, credentials: true }));
 app.use(express.json({ limit: '64kb' }));
 
-// Input validation schema
+// Input validation schemas
 const inquirySchema = z.object({
   name: z.string().trim().min(2, 'Name is required').max(120),
   email: z.string().trim().email('Invalid email address').max(255),
@@ -38,15 +38,17 @@ app.get('/api/dashboard', (_req, res) => {
   const store = readStore();
   const pending = store.inquiries.filter((item) => item.status === 'pending_approval').length;
   const approved = store.inquiries.filter((item) => item.status === 'approved').length;
+  const sent = store.inquiries.filter((item) => item.status === 'sent').length;
   res.json({
     total: store.inquiries.length,
     pending,
     approved,
+    sent,
     contacts: store.contacts.length,
   });
 });
 
-// Inquiries & Contacts
+// Inquiries & Contacts & Audit
 app.get('/api/inquiries', (_req, res) => res.json(readStore().inquiries));
 app.get('/api/contacts', (_req, res) => res.json(readStore().contacts));
 app.get('/api/approvals', (_req, res) => {
@@ -126,8 +128,8 @@ app.patch('/api/inquiries/:id/draft', (req, res) => {
   const inquiry = store.inquiries.find((item) => item.id === req.params.id);
 
   if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' });
-  if (inquiry.status === 'approved') {
-    return res.status(400).json({ error: 'Cannot edit an already approved draft' });
+  if (inquiry.status === 'approved' || inquiry.status === 'sent') {
+    return res.status(400).json({ error: 'Cannot edit an already approved or sent response' });
   }
 
   inquiry.draft = parsed.data.draft;
@@ -165,6 +167,29 @@ function handleDecision(req, res, decision) {
 
 app.post('/api/approvals/:id/approve', (req, res) => handleDecision(req, res, 'approved'));
 app.post('/api/approvals/:id/reject', (req, res) => handleDecision(req, res, 'rejected'));
+
+// Send Approved Draft to Customer
+app.post('/api/inquiries/:id/send', (req, res) => {
+  const store = readStore();
+  const inquiry = store.inquiries.find((item) => item.id === req.params.id);
+
+  if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' });
+  if (inquiry.status !== 'approved') {
+    return res.status(400).json({ error: 'Only approved drafts can be delivered to customer' });
+  }
+
+  inquiry.status = 'sent';
+  inquiry.sentAt = new Date().toISOString();
+  inquiry.updatedAt = inquiry.sentAt;
+
+  logAudit(store, 'response_sent', inquiry.id, {
+    recipient: inquiry.email,
+    actor: 'system-dispatcher',
+  });
+
+  writeStore(store);
+  res.json(inquiry);
+});
 
 // Error handling
 app.use((err, _req, res, _next) => {
