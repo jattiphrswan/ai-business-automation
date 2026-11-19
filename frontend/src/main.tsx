@@ -22,7 +22,7 @@ import {
   MailCheck,
   Search,
   Download,
-  Filter,
+  BookOpen,
 } from 'lucide-react';
 import './styles/app.css';
 
@@ -77,6 +77,35 @@ interface Metrics {
 }
 
 const initialForm = { name: '', email: '', subject: '', message: '' };
+
+// Quick Response Templates
+const RESPONSE_TEMPLATES = [
+  {
+    id: 'refund',
+    name: '💳 Refund Approved',
+    text: 'We have processed your request and approved a full refund. The funds will reflect in your account within 3–5 business days.',
+  },
+  {
+    id: 'more_info',
+    name: '🔍 Request Details',
+    text: 'Could you please reply with your account number, transaction ID, or a screenshot so we can investigate this thoroughly?',
+  },
+  {
+    id: 'escalate',
+    name: '🛠️ Senior Escalation',
+    text: 'Your request has been escalated to our senior operations team. We are actively investigating and will follow up shortly.',
+  },
+  {
+    id: 'meeting',
+    name: '📅 Schedule Call',
+    text: "We'd be glad to discuss tailored options with you directly. You can pick a 15-minute slot that fits your schedule here: https://cal.example.com/flowpilot",
+  },
+  {
+    id: 'resolved',
+    name: '✅ Issue Resolved',
+    text: 'Everything has now been resolved on our end. Please verify when convenient and feel free to reach out if you have any other questions!',
+  },
+];
 
 function App() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
@@ -203,6 +232,13 @@ function App() {
   function startEditingDraft(item: Inquiry) {
     setEditingDraftId(item.id);
     setDraftEditText(item.draft);
+  }
+
+  // Insert a quick template into the draft
+  function insertTemplate(templateText: string, inquiryName: string) {
+    const greeting = `Hi ${inquiryName},\n\n`;
+    const closing = `\n\nBest regards,\nCustomer Operations Team`;
+    setDraftEditText(`${greeting}${templateText}${closing}`);
   }
 
   async function handleSaveDraft(id: string) {
@@ -736,12 +772,34 @@ function App() {
 
                                 {isEditingThisDraft ? (
                                   <div className="draft-editor">
+                                    {/* Quick Templates Selector */}
+                                    <div className="template-picker">
+                                      <div className="template-picker-label">
+                                        <BookOpen size={13} />
+                                        <span>Quick Templates:</span>
+                                      </div>
+                                      <div className="template-chips">
+                                        {RESPONSE_TEMPLATES.map((tmpl) => (
+                                          <button
+                                            key={tmpl.id}
+                                            type="button"
+                                            className="template-chip"
+                                            onClick={() => insertTemplate(tmpl.text, item.name)}
+                                            title="Click to apply this template"
+                                          >
+                                            {tmpl.name}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+
                                     <textarea
                                       className="draft-textarea"
                                       rows={6}
                                       value={draftEditText}
                                       onChange={(e) => setDraftEditText(e.target.value)}
                                     />
+
                                     <div className="editor-actions">
                                       <button
                                         type="button"
