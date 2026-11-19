@@ -1,5 +1,82 @@
 {
-  "inquiries": [],
-  "contacts": [],
-  "audit": []
+  "inquiries": [
+    {
+      "id": "777a75d4-4319-4493-a00a-9c4b674ba040",
+      "name": "sukdha",
+      "email": "sukda@skyfish.dev",
+      "subject": "daILY REPORT",
+      "message": "WOKRING ON DAILY REPORT",
+      "contactId": "66a8380a-0b01-4ba6-bbd6-35826a2b84e6",
+      "classification": {
+        "category": "general",
+        "priority": "normal",
+        "requiresApproval": false,
+        "confidence": 0.65,
+        "method": "rules-demo"
+      },
+      "draft": "Hi sukdha,\n\nThanks for contacting us about \"daILY REPORT\". Our team will review your request and follow up.\n\nBest,\nCustomer Support Team",
+      "status": "draft_ready",
+      "createdAt": "2026-11-19T10:42:59.485Z",
+      "updatedAt": "2026-11-19T10:42:59.485Z"
+    },
+    {
+      "id": "0156e800-5108-4af6-accd-b82437b503e2",
+      "name": "Jagmohan Singh",
+      "email": "jagmohan.singh@skyfish.dev",
+      "subject": "wokr",
+      "message": "about new project",
+      "contactId": "f4c13047-0e92-4361-8dd6-2cfa55042d90",
+      "classification": {
+        "category": "general",
+        "priority": "normal",
+        "requiresApproval": false,
+        "confidence": 0.65,
+        "method": "rules-demo"
+      },
+      "draft": "Hi Jagmohan Singh,\n\nThanks for contacting us about \"wokr\". Our team will review your request and follow up.\n\nBest,\nCustomer Support Team",
+      "status": "draft_ready",
+      "createdAt": "2026-11-19T10:42:19.844Z",
+      "updatedAt": "2026-11-19T10:42:19.844Z"
+    }
+  ],
+  "contacts": [
+    {
+      "id": "66a8380a-0b01-4ba6-bbd6-35826a2b84e6",
+      "name": "sukdha",
+      "email": "sukda@skyfish.dev",
+      "createdAt": "2026-11-19T10:42:59.485Z",
+      "updatedAt": "2026-11-19T10:42:59.485Z"
+    },
+    {
+      "id": "f4c13047-0e92-4361-8dd6-2cfa55042d90",
+      "name": "Jagmohan Singh",
+      "email": "jagmohan.singh@skyfish.dev",
+      "createdAt": "2026-11-19T10:42:19.844Z",
+      "updatedAt": "2026-11-19T10:42:19.844Z"
+    }
+  ],
+  "audit": [
+    {
+      "id": "eaea275e-2e80-4d05-8b98-ff1b3799cb5d",
+      "type": "inquiry_created",
+      "entityId": "777a75d4-4319-4493-a00a-9c4b674ba040",
+      "detail": {
+        "category": "general",
+        "priority": "normal",
+        "status": "draft_ready"
+      },
+      "at": "2026-11-19T10:42:59.485Z"
+    },
+    {
+      "id": "21accba1-f872-4138-9b82-0d04099ff370",
+      "type": "inquiry_created",
+      "entityId": "0156e800-5108-4af6-accd-b82437b503e2",
+      "detail": {
+        "category": "general",
+        "priority": "normal",
+        "status": "draft_ready"
+      },
+      "at": "2026-11-19T10:42:19.846Z"
+    }
+  ]
 }
