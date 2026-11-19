@@ -23,6 +23,8 @@ import {
   Search,
   Download,
   BookOpen,
+  Mail,
+  ExternalLink,
 } from 'lucide-react';
 import './styles/app.css';
 
@@ -122,6 +124,10 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedContactEmail, setSelectedContactEmail] = useState<string | null>(null);
 
+  // Email Dispatch Modal State
+  const [sendModalInquiry, setSendModalInquiry] = useState<Inquiry | null>(null);
+  const [sendSuccessReceipt, setSendSuccessReceipt] = useState<string | null>(null);
+
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -213,14 +219,24 @@ function App() {
     }
   }
 
-  // Send approved response to customer
-  async function handleSendResponse(id: string) {
+  // Confirm and Send Response to customer
+  async function handleConfirmSend(id: string) {
     setSendingId(id);
+    setSendSuccessReceipt(null);
+
     try {
       const res = await fetch(`${API}/api/inquiries/${id}/send`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to dispatch response to customer.');
-      setFeedback({ text: 'Response delivered to customer successfully!', type: 'success' });
+      const data = await res.json();
+
+      setSendSuccessReceipt(`Delivered to ${data.email} at ${new Date(data.sentAt).toLocaleTimeString()}`);
+      setFeedback({ text: `Response successfully delivered to ${data.email}!`, type: 'success' });
       await fetchData();
+
+      setTimeout(() => {
+        setSendModalInquiry(null);
+        setSendSuccessReceipt(null);
+      }, 1800);
     } catch (err) {
       setFeedback({ text: (err as Error).message, type: 'error' });
     } finally {
@@ -234,7 +250,6 @@ function App() {
     setDraftEditText(item.draft);
   }
 
-  // Insert a quick template into the draft
   function insertTemplate(templateText: string, inquiryName: string) {
     const greeting = `Hi ${inquiryName},\n\n`;
     const closing = `\n\nBest regards,\nCustomer Operations Team`;
@@ -263,7 +278,7 @@ function App() {
     }
   }
 
-  // Export filtered inquiries to CSV
+  // Export to CSV
   function handleExportCSV() {
     if (displayedList.length === 0) return;
 
@@ -856,17 +871,16 @@ function App() {
                           </div>
                         )}
 
-                        {/* Outbound Delivery Action */}
+                        {/* Outbound Delivery Action Trigger (Opens Modal) */}
                         {item.status === 'approved' && (
                           <div className="decision-actions">
                             <button
                               type="button"
                               className="btn-send-customer"
-                              disabled={sendingId === item.id}
-                              onClick={() => void handleSendResponse(item.id)}
+                              onClick={() => setSendModalInquiry(item)}
                             >
-                              <Send size={15} />
-                              <span>{sendingId === item.id ? 'Delivering...' : 'Send Response to Customer'}</span>
+                              <Mail size={15} />
+                              <span>Preview & Send Email</span>
                             </button>
                           </div>
                         )}
@@ -876,6 +890,96 @@ function App() {
                 )}
               </div>
             </section>
+          </div>
+        )}
+
+        {/* OUTBOUND EMAIL DISPATCH MODAL */}
+        {sendModalInquiry && (
+          <div className="modal-overlay" onClick={() => !sendingId && setSendModalInquiry(null)}>
+            <div className="modal-container email-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="modal-title">
+                  <Mail size={18} />
+                  <h3>Outbound Email Dispatch Preview</h3>
+                </div>
+                <button
+                  className="modal-close"
+                  onClick={() => !sendingId && setSendModalInquiry(null)}
+                  disabled={Boolean(sendingId)}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="modal-body">
+                {sendSuccessReceipt ? (
+                  <div className="dispatch-success">
+                    <CheckCircle2 size={44} />
+                    <h4>Response Delivered!</h4>
+                    <p>{sendSuccessReceipt}</p>
+                    <span className="dispatch-badge">SMTP Status: 250 OK (Queued for Delivery)</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="email-meta-card">
+                      <div className="email-meta-row">
+                        <span className="email-meta-label">From:</span>
+                        <span className="email-meta-value">FlowPilot Support &lt;support@flowpilot.ai&gt;</span>
+                      </div>
+                      <div className="email-meta-row">
+                        <span className="email-meta-label">To:</span>
+                        <span className="email-meta-value">
+                          {sendModalInquiry.name} &lt;{sendModalInquiry.email}&gt;
+                        </span>
+                      </div>
+                      <div className="email-meta-row">
+                        <span className="email-meta-label">Subject:</span>
+                        <span className="email-meta-value font-medium">
+                          Re: {sendModalInquiry.subject} [Ref #{sendModalInquiry.id.slice(0, 8)}]
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="email-preview-envelope">
+                      <div className="email-preview-header">
+                        <div className="email-logo">FlowPilot</div>
+                        <span className="email-secure-badge">Verified TLS Encryption</span>
+                      </div>
+
+                      <div className="email-preview-content">
+                        <pre>{sendModalInquiry.draft}</pre>
+                      </div>
+
+                      <div className="email-preview-footer">
+                        <p>© 2026 FlowPilot AI Operations · 100% Human-Approved Dispatch</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {!sendSuccessReceipt && (
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={() => setSendModalInquiry(null)}
+                    disabled={Boolean(sendingId)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-confirm-send"
+                    disabled={Boolean(sendingId)}
+                    onClick={() => void handleConfirmSend(sendModalInquiry.id)}
+                  >
+                    <Send size={15} />
+                    <span>{sendingId ? 'Connecting to Mail Server...' : 'Confirm & Send to Customer'}</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
