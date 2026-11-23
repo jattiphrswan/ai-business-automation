@@ -33,12 +33,15 @@ import {
   Zap,
   Globe,
   Radio,
+  UserCheck,
+  Lock,
 } from 'lucide-react';
 import './styles/app.css';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 type ChannelType = 'web_form' | 'email' | 'whatsapp' | 'stripe_webhook';
+type OperatorRole = 'supervisor' | 'agent' | 'auditor';
 
 interface Classification {
   category: string;
@@ -163,6 +166,9 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedContactEmail, setSelectedContactEmail] = useState<string | null>(null);
 
+  // RBAC State
+  const [currentRole, setCurrentRole] = useState<OperatorRole>('supervisor');
+
   // Email Dispatch Modal State
   const [sendModalInquiry, setSendModalInquiry] = useState<Inquiry | null>(null);
   const [sendSuccessReceipt, setSendSuccessReceipt] = useState<string | null>(null);
@@ -209,13 +215,21 @@ function App() {
   // Submit inquiry
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (currentRole === 'auditor') {
+      setFeedback({ text: 'Auditor role is read-only and cannot submit inquiries.', type: 'error' });
+      return;
+    }
+
     setSubmitting(true);
     setFeedback(null);
 
     try {
       const res = await fetch(`${API}/api/inquiries`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Actor-Role': currentRole,
+        },
         body: JSON.stringify(form),
       });
 
@@ -236,13 +250,21 @@ function App() {
 
   // Simulate an inbound channel event with 1-click
   async function triggerSimulation(eventData: (typeof SIMULATED_EVENTS)[number]) {
+    if (currentRole === 'auditor') {
+      setFeedback({ text: 'Auditor role is read-only and cannot trigger simulations.', type: 'error' });
+      return;
+    }
+
     setSubmitting(true);
     setFeedback(null);
 
     try {
       const res = await fetch(`${API}/api/inquiries`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Actor-Role': currentRole,
+        },
         body: JSON.stringify({
           name: eventData.name,
           email: eventData.email,
@@ -269,6 +291,11 @@ function App() {
 
   // Handle Approve or Reject
   async function handleDecision(id: string, action: 'approve' | 'reject') {
+    if (currentRole !== 'supervisor') {
+      setFeedback({ text: 'Supervisor authority is required to approve or reject drafts.', type: 'error' });
+      return;
+    }
+
     let reason = '';
     if (action === 'reject') {
       const input = window.prompt('Please provide a reason for rejecting this draft:');
@@ -279,11 +306,18 @@ function App() {
     try {
       const res = await fetch(`${API}/api/approvals/${id}/${action}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Actor-Role': currentRole,
+        },
         body: JSON.stringify({ reason }),
       });
 
-      if (!res.ok) throw new Error('Failed to process approval decision.');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to process approval decision.');
+      }
+
       setFeedback({ text: `Draft successfully ${action}d.`, type: 'success' });
       await fetchData();
     } catch (err) {
@@ -293,12 +327,23 @@ function App() {
 
   // Confirm and Send Response to customer
   async function handleConfirmSend(id: string) {
+    if (currentRole !== 'supervisor') {
+      setFeedback({ text: 'Supervisor authority is required to dispatch customer responses.', type: 'error' });
+      return;
+    }
+
     setSendingId(id);
     setSendSuccessReceipt(null);
 
     try {
-      const res = await fetch(`${API}/api/inquiries/${id}/send`, { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to dispatch response to customer.');
+      const res = await fetch(`${API}/api/inquiries/${id}/send`, {
+        method: 'POST',
+        headers: { 'X-Actor-Role': currentRole },
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to dispatch response to customer.');
+      }
       const data = await res.json();
 
       setSendSuccessReceipt(`Delivered to ${data.email} at ${new Date(data.sentAt).toLocaleTimeString()}`);
@@ -318,6 +363,10 @@ function App() {
 
   // Draft editing
   function startEditingDraft(item: Inquiry) {
+    if (currentRole === 'auditor') {
+      setFeedback({ text: 'Auditor role is read-only and cannot edit response drafts.', type: 'error' });
+      return;
+    }
     setEditingDraftId(item.id);
     setDraftEditText(item.draft);
   }
@@ -335,11 +384,18 @@ function App() {
     try {
       const res = await fetch(`${API}/api/inquiries/${id}/draft`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Actor-Role': currentRole,
+        },
         body: JSON.stringify({ draft: draftEditText }),
       });
 
-      if (!res.ok) throw new Error('Failed to save draft edits.');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to save draft edits.');
+      }
+
       setEditingDraftId(null);
       setFeedback({ text: 'Draft updated successfully by human editor!', type: 'success' });
       await fetchData();
@@ -352,6 +408,10 @@ function App() {
 
   // Export to CSV
   function handleExportCSV() {
+    if (currentRole === 'agent') {
+      setFeedback({ text: 'Data export is restricted to Supervisors and Compliance Auditors.', type: 'error' });
+      return;
+    }
     if (displayedList.length === 0) return;
 
     const headers = ['ID', 'Name', 'Email', 'Subject', 'Category', 'Priority', 'Channel', 'Status', 'Created At', 'Sent At'];
@@ -590,7 +650,7 @@ function App() {
         <div className="sidebar-footer">
           <div className="safety-note">
             <div className="safety-tag">HUMAN-IN-THE-LOOP</div>
-            <p>High-risk drafts require approval before final delivery to customer.</p>
+            <p>Role-based review active. Supervisors gate final delivery.</p>
           </div>
         </div>
       </aside>
@@ -609,7 +669,34 @@ function App() {
             </div>
           </div>
           <div className="header-actions">
-            <button className="btn-secondary" onClick={handleExportCSV} title="Export current list to CSV">
+            {/* RBAC Operator Role Switcher */}
+            <div className="role-switcher">
+              <UserCheck size={14} className="role-icon" />
+              <label htmlFor="role-select">Active Role:</label>
+              <select
+                id="role-select"
+                value={currentRole}
+                onChange={(e) => {
+                  const newRole = e.target.value as OperatorRole;
+                  setCurrentRole(newRole);
+                  setFeedback({
+                    text: `Switched active role to: ${newRole.toUpperCase()} (Permissions updated live)`,
+                    type: 'success',
+                  });
+                }}
+              >
+                <option value="supervisor">🛡️ Supervisor (Full Authority)</option>
+                <option value="agent">🧑‍💻 Tier-1 Agent (Draft & Edit)</option>
+                <option value="auditor">🔍 Compliance Auditor (Read-Only)</option>
+              </select>
+            </div>
+
+            <button
+              className="btn-secondary"
+              onClick={handleExportCSV}
+              title="Export current list to CSV"
+              disabled={currentRole === 'agent'}
+            >
               <Download size={15} />
               <span>Export CSV</span>
             </button>
@@ -631,6 +718,18 @@ function App() {
             <button onClick={() => setFeedback(null)} className="alert-close">
               <X size={14} />
             </button>
+          </div>
+        )}
+
+        {/* Role Permission Alert Notice */}
+        {currentRole !== 'supervisor' && (
+          <div className="role-notice">
+            <Lock size={15} />
+            <span>
+              {currentRole === 'agent'
+                ? 'Logged in as Tier-1 Agent: You can draft, edit, and categorize inquiries. Approval of high-risk items requires Supervisor sign-off.'
+                : 'Logged in as Compliance Auditor: Read-only observation mode. Modifying drafts, approvals, and dispatch actions are restricted.'}
+            </span>
           </div>
         )}
 
@@ -828,7 +927,7 @@ function App() {
             </div>
           </section>
         ) : (
-          /* VIEW 4: INQUIRIES & APPROVALS (DUAL COLUMN WITH CHANNEL SIMULATOR) */
+          /* VIEW 4: INQUIRIES & APPROVALS (DUAL COLUMN WITH RBAC CONTROLS) */
           <div className="content-columns">
             {/* Customer Intake & Simulator Panel */}
             <section className="card form-panel">
@@ -851,7 +950,7 @@ function App() {
                       key={sim.channel}
                       type="button"
                       className={`sim-btn ${sim.channel}`}
-                      disabled={submitting}
+                      disabled={submitting || currentRole === 'auditor'}
                       onClick={() => void triggerSimulation(sim)}
                       title={`Simulate instant intake via ${sim.badge}`}
                     >
@@ -871,6 +970,7 @@ function App() {
                       required
                       minLength={2}
                       maxLength={120}
+                      disabled={currentRole === 'auditor'}
                       placeholder="Alex Morgan"
                       value={form.name}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -882,6 +982,7 @@ function App() {
                       id="email"
                       type="email"
                       required
+                      disabled={currentRole === 'auditor'}
                       placeholder="alex@example.com"
                       value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -896,6 +997,7 @@ function App() {
                     required
                     minLength={3}
                     maxLength={200}
+                    disabled={currentRole === 'auditor'}
                     placeholder="e.g. Urgent refund requested / Enterprise Pricing"
                     value={form.subject}
                     onChange={(e) => setForm({ ...form, subject: e.target.value })}
@@ -909,15 +1011,22 @@ function App() {
                     required
                     minLength={10}
                     rows={4}
+                    disabled={currentRole === 'auditor'}
                     placeholder="Provide message details. (Tip: terms like 'urgent', 'refund', or 'lawsuit' escalate to human approval)."
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                   />
                 </div>
 
-                <button type="submit" className="btn-primary" disabled={submitting}>
+                <button type="submit" className="btn-primary" disabled={submitting || currentRole === 'auditor'}>
                   <Send size={16} />
-                  <span>{submitting ? 'Analyzing with AI...' : 'Process Inquiry'}</span>
+                  <span>
+                    {currentRole === 'auditor'
+                      ? 'Intake Disabled (Auditor Mode)'
+                      : submitting
+                      ? 'Analyzing with AI...'
+                      : 'Process Inquiry'}
+                  </span>
                 </button>
               </form>
             </section>
@@ -1062,16 +1171,19 @@ function App() {
                                     <Sparkles size={14} />
                                     <span>AI Generated Response Draft</span>
                                   </div>
-                                  {item.status !== 'approved' && item.status !== 'sent' && !isEditingThisDraft && (
-                                    <button
-                                      type="button"
-                                      className="btn-edit-draft"
-                                      onClick={() => startEditingDraft(item)}
-                                    >
-                                      <Edit3 size={13} />
-                                      <span>Edit Draft</span>
-                                    </button>
-                                  )}
+                                  {item.status !== 'approved' &&
+                                    item.status !== 'sent' &&
+                                    !isEditingThisDraft &&
+                                    currentRole !== 'auditor' && (
+                                      <button
+                                        type="button"
+                                        className="btn-edit-draft"
+                                        onClick={() => startEditingDraft(item)}
+                                      >
+                                        <Edit3 size={13} />
+                                        <span>Edit Draft</span>
+                                      </button>
+                                    )}
                                 </div>
 
                                 {isEditingThisDraft ? (
@@ -1138,39 +1250,55 @@ function App() {
                           )}
                         </div>
 
-                        {/* Approval Queue Controls */}
+                        {/* Approval Queue Controls with RBAC protection */}
                         {item.status === 'pending_approval' && (
                           <div className="decision-actions">
-                            <button
-                              type="button"
-                              className="btn-approve"
-                              onClick={() => void handleDecision(item.id, 'approve')}
-                            >
-                              <Check size={15} />
-                              <span>Approve Draft</span>
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-reject"
-                              onClick={() => void handleDecision(item.id, 'reject')}
-                            >
-                              <X size={15} />
-                              <span>Reject</span>
-                            </button>
+                            {currentRole === 'supervisor' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn-approve"
+                                  onClick={() => void handleDecision(item.id, 'approve')}
+                                >
+                                  <Check size={15} />
+                                  <span>Approve Draft</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-reject"
+                                  onClick={() => void handleDecision(item.id, 'reject')}
+                                >
+                                  <X size={15} />
+                                  <span>Reject</span>
+                                </button>
+                              </>
+                            ) : (
+                              <div className="locked-approval-badge">
+                                <Lock size={13} />
+                                <span>Supervisor Approval Required</span>
+                              </div>
+                            )}
                           </div>
                         )}
 
-                        {/* Outbound Delivery Action Trigger (Opens Modal) */}
+                        {/* Outbound Delivery Action Trigger (Supervisor Only) */}
                         {item.status === 'approved' && (
                           <div className="decision-actions">
-                            <button
-                              type="button"
-                              className="btn-send-customer"
-                              onClick={() => setSendModalInquiry(item)}
-                            >
-                              <Mail size={15} />
-                              <span>Preview & Send Email</span>
-                            </button>
+                            {currentRole === 'supervisor' ? (
+                              <button
+                                type="button"
+                                className="btn-send-customer"
+                                onClick={() => setSendModalInquiry(item)}
+                              >
+                                <Mail size={15} />
+                                <span>Preview & Send Email</span>
+                              </button>
+                            ) : (
+                              <div className="locked-approval-badge">
+                                <Lock size={13} />
+                                <span>Supervisor Dispatch Required</span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </article>

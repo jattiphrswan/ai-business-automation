@@ -119,8 +119,20 @@ app.post('/api/inquiries', async (req, res, next) => {
   }
 });
 
+// Actor Role Helper (RBAC)
+function getActor(req) {
+  const role = req.headers['x-actor-role'] || 'supervisor';
+  const name = req.headers['x-actor-name'] || (role === 'supervisor' ? 'Lead Supervisor' : role === 'agent' ? 'Tier-1 Agent' : 'Compliance Auditor');
+  return { role, name };
+}
+
 // Edit Draft Before Approval
 app.patch('/api/inquiries/:id/draft', (req, res) => {
+  const actor = getActor(req);
+  if (actor.role === 'auditor') {
+    return res.status(403).json({ error: 'Auditors have read-only access and cannot modify drafts.' });
+  }
+
   const parsed = draftEditSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: 'Invalid draft content', issues: parsed.error.flatten() });
@@ -138,13 +150,18 @@ app.patch('/api/inquiries/:id/draft', (req, res) => {
   inquiry.updatedAt = new Date().toISOString();
   inquiry.isEdited = true;
 
-  logAudit(store, 'draft_edited', inquiry.id, { actor: 'human-editor' });
+  logAudit(store, 'draft_edited', inquiry.id, { actor: actor.name, role: actor.role });
   writeStore(store);
   res.json(inquiry);
 });
 
 // Human Decisions (Approve / Reject)
 function handleDecision(req, res, decision) {
+  const actor = getActor(req);
+  if (actor.role !== 'supervisor') {
+    return res.status(403).json({ error: 'Supervisor authority is required to approve or reject drafts.' });
+  }
+
   const store = readStore();
   const inquiry = store.inquiries.find((item) => item.id === req.params.id);
 
@@ -162,7 +179,7 @@ function handleDecision(req, res, decision) {
   inquiry.updatedAt = new Date().toISOString();
   if (reason) inquiry.decisionReason = reason;
 
-  logAudit(store, `draft_${decision}`, inquiry.id, { reason, actor: 'human-reviewer' });
+  logAudit(store, `draft_${decision}`, inquiry.id, { reason, actor: actor.name, role: actor.role });
   writeStore(store);
   res.json(inquiry);
 }
@@ -172,6 +189,11 @@ app.post('/api/approvals/:id/reject', (req, res) => handleDecision(req, res, 're
 
 // Send Approved Draft to Customer
 app.post('/api/inquiries/:id/send', (req, res) => {
+  const actor = getActor(req);
+  if (actor.role !== 'supervisor') {
+    return res.status(403).json({ error: 'Supervisor authority is required to dispatch responses to customers.' });
+  }
+
   const store = readStore();
   const inquiry = store.inquiries.find((item) => item.id === req.params.id);
 
@@ -186,7 +208,8 @@ app.post('/api/inquiries/:id/send', (req, res) => {
 
   logAudit(store, 'response_sent', inquiry.id, {
     recipient: inquiry.email,
-    actor: 'system-dispatcher',
+    actor: actor.name,
+    role: actor.role,
   });
 
   writeStore(store);
