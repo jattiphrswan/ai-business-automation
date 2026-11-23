@@ -17,9 +17,9 @@
         "method": "rules-engine"
       },
       "draft": "Hi Stripe Dispute System,\n\nThank you for reaching out regarding \"CRITICAL: Chargeback dispute filed for Invoice #INV-8821 (.00)\".\n\nOur billing team is currently reviewing your account and will follow up shortly.\n\nBest regards,\nCustomer Operations Team",
-      "status": "pending_approval",
+      "status": "approved",
       "createdAt": "2026-11-23T11:42:04.705Z",
-      "updatedAt": "2026-11-23T11:42:04.705Z"
+      "updatedAt": "2026-11-23T11:49:54.546Z"
     },
     {
       "id": "a6dfab30-7096-4da8-816d-e211f245ed92",
@@ -150,6 +150,16 @@
     }
   ],
   "audit": [
+    {
+      "id": "1b0b5d53-73fc-4921-ae0b-220ed503e4cf",
+      "type": "draft_approved",
+      "entityId": "baf3d066-8f72-42d8-a5d5-3f8e118cd0b3",
+      "detail": {
+        "reason": "",
+        "actor": "human-reviewer"
+      },
+      "at": "2026-11-23T11:49:54.548Z"
+    },
     {
       "id": "cfbdd8a6-f734-46a5-8d91-32437d67c81f",
       "type": "inquiry_created",
