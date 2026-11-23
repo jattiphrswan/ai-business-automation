@@ -29,10 +29,16 @@ import {
   Percent,
   Activity,
   AlertOctagon,
+  MessageSquare,
+  Zap,
+  Globe,
+  Radio,
 } from 'lucide-react';
 import './styles/app.css';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+
+type ChannelType = 'web_form' | 'email' | 'whatsapp' | 'stripe_webhook';
 
 interface Classification {
   category: string;
@@ -50,6 +56,7 @@ interface Inquiry {
   subject: string;
   message: string;
   draft: string;
+  channel?: ChannelType;
   status: 'draft_ready' | 'pending_approval' | 'approved' | 'rejected' | 'sent';
   classification: Classification;
   decisionReason?: string;
@@ -82,7 +89,35 @@ interface Metrics {
   contacts: number;
 }
 
-const initialForm = { name: '', email: '', subject: '', message: '' };
+const initialForm = { name: '', email: '', subject: '', message: '', channel: 'web_form' as ChannelType };
+
+// Preset Inbound Channel Simulations
+const SIMULATED_EVENTS = [
+  {
+    channel: 'email' as ChannelType,
+    name: 'Sarah Connor',
+    email: 'sarah.connor@cyberdyne.ai',
+    subject: 'Enterprise SLA & Multi-Region failover quote',
+    message: 'Hello, our engineering leadership is evaluating FlowPilot for 500+ agents. Could you provide enterprise pricing and your SLA agreement for multi-region active-active deployments?',
+    badge: '📧 Gmail Inbound Sync',
+  },
+  {
+    channel: 'whatsapp' as ChannelType,
+    name: 'Carlos Mendez',
+    email: 'carlos.m@whatsapp-user.com',
+    subject: 'WhatsApp Chat: Locked out after 2FA reset',
+    message: 'Hey support! I reset my phone and now I am completely locked out of my corporate workspace. Can someone help reset my authenticator app please?',
+    badge: '💬 WhatsApp Chat',
+  },
+  {
+    channel: 'stripe_webhook' as ChannelType,
+    name: 'Stripe Dispute System',
+    email: 'disputes@stripe.com',
+    subject: 'CRITICAL: Chargeback dispute filed for Invoice #INV-8821 ($499.00)',
+    message: 'Customer has initiated a formal chargeback with their issuing bank claiming fraudulent transaction for charge ch_3M5q8899. Immediate response and evidence submission required within 48 hours.',
+    badge: '⚡ Stripe Chargeback',
+  },
+];
 
 // Quick Response Templates
 const RESPONSE_TEMPLATES = [
@@ -199,6 +234,39 @@ function App() {
     }
   }
 
+  // Simulate an inbound channel event with 1-click
+  async function triggerSimulation(eventData: (typeof SIMULATED_EVENTS)[number]) {
+    setSubmitting(true);
+    setFeedback(null);
+
+    try {
+      const res = await fetch(`${API}/api/inquiries`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: eventData.name,
+          email: eventData.email,
+          subject: eventData.subject,
+          message: eventData.message,
+          channel: eventData.channel,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Simulation failed to dispatch event.');
+      const inq = await res.json();
+
+      setFeedback({
+        text: `Inbound event captured from [${eventData.badge}]: Categorized as ${inq.classification.category} (${inq.classification.priority} priority).`,
+        type: 'success',
+      });
+      await fetchData();
+    } catch (err) {
+      setFeedback({ text: (err as Error).message, type: 'error' });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   // Handle Approve or Reject
   async function handleDecision(id: string, action: 'approve' | 'reject') {
     let reason = '';
@@ -286,7 +354,7 @@ function App() {
   function handleExportCSV() {
     if (displayedList.length === 0) return;
 
-    const headers = ['ID', 'Name', 'Email', 'Subject', 'Category', 'Priority', 'Status', 'Created At', 'Sent At'];
+    const headers = ['ID', 'Name', 'Email', 'Subject', 'Category', 'Priority', 'Channel', 'Status', 'Created At', 'Sent At'];
     const rows = displayedList.map((item) => [
       item.id,
       `"${item.name.replace(/"/g, '""')}"`,
@@ -294,6 +362,7 @@ function App() {
       `"${item.subject.replace(/"/g, '""')}"`,
       item.classification.category,
       item.classification.priority,
+      item.channel || 'web_form',
       item.status,
       item.createdAt,
       item.sentAt || '',
@@ -354,17 +423,22 @@ function App() {
         sentTotal: 0,
         rejectionCount: 0,
         avgConfidence: 0,
+        channels: [],
       };
     }
 
     const categoriesCount: Record<string, number> = {};
+    const channelCount: Record<string, number> = {};
     let highPriorityCount = 0;
     let escalationCount = 0;
     let confidenceSum = 0;
 
     inquiries.forEach((item) => {
       const cat = item.classification.category.toLowerCase();
+      const ch = item.channel || 'web_form';
       categoriesCount[cat] = (categoriesCount[cat] || 0) + 1;
+      channelCount[ch] = (channelCount[ch] || 0) + 1;
+
       if (item.classification.priority === 'high') highPriorityCount++;
       if (item.classification.requiresApproval) escalationCount++;
       confidenceSum += item.classification.confidence || 0.75;
@@ -376,12 +450,19 @@ function App() {
       pct: Math.round((count / total) * 100),
     }));
 
+    const channels = Object.entries(channelCount).map(([name, count]) => ({
+      name,
+      count,
+      pct: Math.round((count / total) * 100),
+    }));
+
     const rejectedCount = inquiries.filter((x) => x.status === 'rejected').length;
     const approvedTotal = inquiries.filter((x) => x.status === 'approved' || x.status === 'sent').length;
     const sentTotal = inquiries.filter((x) => x.status === 'sent').length;
 
     return {
       categories,
+      channels,
       highPriorityPct: Math.round((highPriorityCount / total) * 100),
       escalationRate: Math.round((escalationCount / total) * 100),
       approvedTotal,
@@ -390,6 +471,40 @@ function App() {
       avgConfidence: Math.round((confidenceSum / total) * 100),
     };
   }, [inquiries]);
+
+  // Channel Icon helper
+  function renderChannelBadge(channel?: ChannelType) {
+    switch (channel) {
+      case 'email':
+        return (
+          <span className="channel-badge email">
+            <Mail size={12} />
+            <span>Gmail Sync</span>
+          </span>
+        );
+      case 'whatsapp':
+        return (
+          <span className="channel-badge whatsapp">
+            <MessageSquare size={12} />
+            <span>WhatsApp</span>
+          </span>
+        );
+      case 'stripe_webhook':
+        return (
+          <span className="channel-badge stripe">
+            <Zap size={12} />
+            <span>Stripe Webhook</span>
+          </span>
+        );
+      default:
+        return (
+          <span className="channel-badge web">
+            <Globe size={12} />
+            <span>Web Form</span>
+          </span>
+        );
+    }
+  }
 
   return (
     <div className="app-container">
@@ -663,44 +778,24 @@ function App() {
                 </div>
               </div>
 
-              {/* Operations Funnel */}
+              {/* Inbound Channels Breakdown */}
               <div className="card">
                 <div className="card-header">
-                  <h2>Operational Funnel</h2>
-                  <p>End-to-end request progression through the pipeline.</p>
+                  <h2>Inbound Channels</h2>
+                  <p>Traffic distribution across connected ingestion pipelines.</p>
                 </div>
-                <div className="funnel-steps">
-                  <div className="funnel-step">
-                    <div className="step-circle blue">1</div>
-                    <div className="step-content">
-                      <strong>Inbound Intake</strong>
-                      <p>{metrics.total} total inquiries captured</p>
+                <div className="category-bars">
+                  {analyticsData.channels.map((ch) => (
+                    <div className="bar-row" key={ch.name}>
+                      <div className="bar-meta">
+                        <span className="bar-label">{ch.name.replaceAll('_', ' ').toUpperCase()}</span>
+                        <span className="bar-count">{ch.count} ({ch.pct}%)</span>
+                      </div>
+                      <div className="bar-track">
+                        <div className="bar-fill cat-general" style={{ width: `${ch.pct}%` }}></div>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="funnel-step">
-                    <div className="step-circle purple">2</div>
-                    <div className="step-content">
-                      <strong>AI Triaged & Drafted</strong>
-                      <p>100% automated draft responses generated</p>
-                    </div>
-                  </div>
-
-                  <div className="funnel-step">
-                    <div className="step-circle amber">3</div>
-                    <div className="step-content">
-                      <strong>Human Review & Edits</strong>
-                      <p>{analyticsData.approvedTotal} approved · {analyticsData.rejectedCount} rejected</p>
-                    </div>
-                  </div>
-
-                  <div className="funnel-step">
-                    <div className="step-circle green">4</div>
-                    <div className="step-content">
-                      <strong>Delivered to Recipient</strong>
-                      <p>{metrics.sent || 0} response emails successfully dispatched</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -733,14 +828,37 @@ function App() {
             </div>
           </section>
         ) : (
-          /* VIEW 4: INQUIRIES & APPROVALS (DUAL COLUMN WITH SEARCH & FILTERS) */
+          /* VIEW 4: INQUIRIES & APPROVALS (DUAL COLUMN WITH CHANNEL SIMULATOR) */
           <div className="content-columns">
-            {/* Customer Intake Form */}
+            {/* Customer Intake & Simulator Panel */}
             <section className="card form-panel">
               <div className="card-header">
                 <div>
                   <h2>Customer Intake</h2>
-                  <p>Submit inquiries to test real-time AI classification & auto-drafting.</p>
+                  <p>Submit inquiries manually or test automated inbound channel ingestion.</p>
+                </div>
+              </div>
+
+              {/* 1-Click Inbound Channel Simulator Strip */}
+              <div className="simulator-banner">
+                <div className="simulator-label">
+                  <Radio size={14} className="pulse-icon" />
+                  <span>Test Inbound Channels (1-Click):</span>
+                </div>
+                <div className="simulator-buttons">
+                  {SIMULATED_EVENTS.map((sim) => (
+                    <button
+                      key={sim.channel}
+                      type="button"
+                      className={`sim-btn ${sim.channel}`}
+                      disabled={submitting}
+                      onClick={() => void triggerSimulation(sim)}
+                      title={`Simulate instant intake via ${sim.badge}`}
+                    >
+                      {sim.channel === 'email' ? <Mail size={13} /> : sim.channel === 'whatsapp' ? <MessageSquare size={13} /> : <Zap size={13} />}
+                      <span>{sim.badge}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -906,6 +1024,7 @@ function App() {
                         </div>
 
                         <div className="tag-row">
+                          {renderChannelBadge(item.channel)}
                           <span className="tag category">{item.classification.category}</span>
                           <span className={`tag priority ${item.classification.priority}`}>
                             {item.classification.priority} priority

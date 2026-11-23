@@ -1,6 +1,27 @@
 {
   "inquiries": [
     {
+      "id": "baf3d066-8f72-42d8-a5d5-3f8e118cd0b3",
+      "name": "Stripe Dispute System",
+      "email": "disputes@stripe.com",
+      "subject": "CRITICAL: Chargeback dispute filed for Invoice #INV-8821 (.00)",
+      "message": "Customer has initiated a formal chargeback with their issuing bank.",
+      "channel": "stripe_webhook",
+      "contactId": "f8fee569-d58a-4292-8c0d-e48b51e76a27",
+      "classification": {
+        "category": "billing",
+        "priority": "high",
+        "requiresApproval": true,
+        "sentiment": "negative",
+        "confidence": 0.75,
+        "method": "rules-engine"
+      },
+      "draft": "Hi Stripe Dispute System,\n\nThank you for reaching out regarding \"CRITICAL: Chargeback dispute filed for Invoice #INV-8821 (.00)\".\n\nOur billing team is currently reviewing your account and will follow up shortly.\n\nBest regards,\nCustomer Operations Team",
+      "status": "pending_approval",
+      "createdAt": "2026-11-23T11:42:04.705Z",
+      "updatedAt": "2026-11-23T11:42:04.705Z"
+    },
+    {
       "id": "a6dfab30-7096-4da8-816d-e211f245ed92",
       "name": "John Doe",
       "email": "john@example.com",
@@ -100,6 +121,13 @@
   ],
   "contacts": [
     {
+      "id": "f8fee569-d58a-4292-8c0d-e48b51e76a27",
+      "name": "Stripe Dispute System",
+      "email": "disputes@stripe.com",
+      "createdAt": "2026-11-23T11:42:04.705Z",
+      "updatedAt": "2026-11-23T11:42:04.705Z"
+    },
+    {
       "id": "3f31af68-ceae-472e-be57-f0e58595e372",
       "name": "John Doe",
       "email": "john@example.com",
@@ -122,6 +150,19 @@
     }
   ],
   "audit": [
+    {
+      "id": "cfbdd8a6-f734-46a5-8d91-32437d67c81f",
+      "type": "inquiry_created",
+      "entityId": "baf3d066-8f72-42d8-a5d5-3f8e118cd0b3",
+      "detail": {
+        "category": "billing",
+        "priority": "high",
+        "channel": "stripe_webhook",
+        "method": "rules-engine",
+        "status": "pending_approval"
+      },
+      "at": "2026-11-23T11:42:04.706Z"
+    },
     {
       "id": "a005ba53-737a-4683-ac9b-891945dc26d0",
       "type": "response_sent",

@@ -21,6 +21,7 @@ const inquirySchema = z.object({
   email: z.string().trim().email('Invalid email address').max(255),
   subject: z.string().trim().min(3, 'Subject must be at least 3 characters').max(200),
   message: z.string().trim().min(10, 'Message must be at least 10 characters').max(5000),
+  channel: z.enum(['web_form', 'email', 'whatsapp', 'stripe_webhook']).default('web_form'),
 });
 
 const draftEditSchema = z.object({
@@ -106,6 +107,7 @@ app.post('/api/inquiries', async (req, res, next) => {
     logAudit(store, 'inquiry_created', inquiry.id, {
       category: aiResult.category,
       priority: aiResult.priority,
+      channel: inquiry.channel,
       method: aiResult.method,
       status: inquiry.status,
     });

@@ -423,6 +423,120 @@ button, input, textarea {
   margin-top: 2px;
 }
 
+/* 1-Click Inbound Channel Simulator Banner */
+.simulator-banner {
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.simulator-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.73rem;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pulse-icon {
+  color: #6366f1;
+  animation: pulse 1.5s infinite;
+}
+
+.simulator-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sim-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  background-color: #ffffff;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
+}
+
+.sim-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.sim-btn.email:hover {
+  border-color: #3b82f6;
+  color: #2563eb;
+  background-color: #eff6ff;
+}
+
+.sim-btn.whatsapp:hover {
+  border-color: #10b981;
+  color: #059669;
+  background-color: #ecfdf5;
+}
+
+.sim-btn.stripe_webhook:hover {
+  border-color: #8b5cf6;
+  color: #7c3aed;
+  background-color: #f5f3ff;
+}
+
+.sim-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Channel Badges on Inquiries */
+.channel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.channel-badge.email {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.channel-badge.whatsapp {
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.channel-badge.stripe {
+  background-color: #f5f3ff;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+}
+
+.channel-badge.web {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
 /* Search Bar & Filters */
 .filter-toolbar {
   display: flex;
@@ -1184,53 +1298,6 @@ button, input, textarea {
 .bar-fill.cat-support { background-color: #ef4444; }
 .bar-fill.cat-account { background-color: #8b5cf6; }
 .bar-fill.cat-general { background-color: #10b981; }
-
-.funnel-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-top: 12px;
-}
-
-.funnel-step {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 14px;
-  background-color: #f8fafc;
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-}
-
-.step-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 0.85rem;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-.step-circle.blue { background-color: #2563eb; }
-.step-circle.purple { background-color: #7c3aed; }
-.step-circle.amber { background-color: #d97706; }
-.step-circle.green { background-color: #059669; }
-
-.step-content strong {
-  font-size: 0.9rem;
-  color: var(--text-main);
-  display: block;
-}
-
-.step-content p {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
 
 /* Audit Timeline */
 .audit-timeline {
