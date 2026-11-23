@@ -24,7 +24,11 @@ import {
   Download,
   BookOpen,
   Mail,
-  ExternalLink,
+  BarChart3,
+  TrendingUp,
+  Percent,
+  Activity,
+  AlertOctagon,
 } from 'lucide-react';
 import './styles/app.css';
 
@@ -115,7 +119,7 @@ function App() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [metrics, setMetrics] = useState<Metrics>({ total: 0, pending: 0, approved: 0, sent: 0, contacts: 0 });
   const [form, setForm] = useState(initialForm);
-  const [activeTab, setActiveTab] = useState<'inquiries' | 'approvals' | 'contacts' | 'audit'>('inquiries');
+  const [activeTab, setActiveTab] = useState<'inquiries' | 'approvals' | 'contacts' | 'audit' | 'analytics'>('inquiries');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -338,6 +342,55 @@ function App() {
     return list;
   }, [inquiries, activeTab, selectedContactEmail, selectedStatus, selectedCategory, searchQuery]);
 
+  // Analytics Computation
+  const analyticsData = useMemo(() => {
+    const total = inquiries.length;
+    if (total === 0) {
+      return {
+        categories: [],
+        highPriorityPct: 0,
+        escalationRate: 0,
+        approvedTotal: 0,
+        sentTotal: 0,
+        rejectionCount: 0,
+        avgConfidence: 0,
+      };
+    }
+
+    const categoriesCount: Record<string, number> = {};
+    let highPriorityCount = 0;
+    let escalationCount = 0;
+    let confidenceSum = 0;
+
+    inquiries.forEach((item) => {
+      const cat = item.classification.category.toLowerCase();
+      categoriesCount[cat] = (categoriesCount[cat] || 0) + 1;
+      if (item.classification.priority === 'high') highPriorityCount++;
+      if (item.classification.requiresApproval) escalationCount++;
+      confidenceSum += item.classification.confidence || 0.75;
+    });
+
+    const categories = Object.entries(categoriesCount).map(([name, count]) => ({
+      name,
+      count,
+      pct: Math.round((count / total) * 100),
+    }));
+
+    const rejectedCount = inquiries.filter((x) => x.status === 'rejected').length;
+    const approvedTotal = inquiries.filter((x) => x.status === 'approved' || x.status === 'sent').length;
+    const sentTotal = inquiries.filter((x) => x.status === 'sent').length;
+
+    return {
+      categories,
+      highPriorityPct: Math.round((highPriorityCount / total) * 100),
+      escalationRate: Math.round((escalationCount / total) * 100),
+      approvedTotal,
+      sentTotal,
+      rejectedCount,
+      avgConfidence: Math.round((confidenceSum / total) * 100),
+    };
+  }, [inquiries]);
+
   return (
     <div className="app-container">
       {/* Sidebar Navigation */}
@@ -391,6 +444,18 @@ function App() {
             <Users size={18} />
             <span>CRM Contacts</span>
             <span className="badge">{contacts.length}</span>
+          </button>
+
+          <button
+            className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('analytics');
+              setSelectedContactEmail(null);
+              setMobileMenuOpen(false);
+            }}
+          >
+            <BarChart3 size={18} />
+            <span>SLA Analytics</span>
           </button>
 
           <button
@@ -535,8 +600,113 @@ function App() {
               })}
             </div>
           </section>
+        ) : activeTab === 'analytics' ? (
+          /* VIEW 2: OPERATIONS & SLA ANALYTICS */
+          <div className="analytics-container">
+            <div className="analytics-kpi-row">
+              <div className="kpi-card">
+                <div className="kpi-header">
+                  <span>Human Escalation Rate</span>
+                  <AlertOctagon size={16} className="text-amber" />
+                </div>
+                <h3>{analyticsData.escalationRate}%</h3>
+                <p>Requests requiring manual supervisor sign-off</p>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-header">
+                  <span>High-Priority Volume</span>
+                  <Activity size={16} className="text-danger" />
+                </div>
+                <h3>{analyticsData.highPriorityPct}%</h3>
+                <p>Flagged as urgent, billing issues, or sensitive</p>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-header">
+                  <span>AI Confidence Score</span>
+                  <TrendingUp size={16} className="text-primary" />
+                </div>
+                <h3>{analyticsData.avgConfidence}%</h3>
+                <p>Average categorization certainty rating</p>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-header">
+                  <span>Delivery Success Rate</span>
+                  <Percent size={16} className="text-success" />
+                </div>
+                <h3>{analyticsData.approvedTotal > 0 ? Math.round((analyticsData.sentTotal / analyticsData.approvedTotal) * 100) : 100}%</h3>
+                <p>Approved responses dispatched to customers</p>
+              </div>
+            </div>
+
+            <div className="analytics-charts-grid">
+              {/* Category Breakdown */}
+              <div className="card">
+                <div className="card-header">
+                  <h2>Inquiries by Category</h2>
+                  <p>Distribution of incoming requests triaged by the engine.</p>
+                </div>
+                <div className="category-bars">
+                  {analyticsData.categories.map((cat) => (
+                    <div className="bar-row" key={cat.name}>
+                      <div className="bar-meta">
+                        <span className="bar-label">{cat.name.toUpperCase()}</span>
+                        <span className="bar-count">{cat.count} ({cat.pct}%)</span>
+                      </div>
+                      <div className="bar-track">
+                        <div className={`bar-fill cat-${cat.name}`} style={{ width: `${cat.pct}%` }}></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Operations Funnel */}
+              <div className="card">
+                <div className="card-header">
+                  <h2>Operational Funnel</h2>
+                  <p>End-to-end request progression through the pipeline.</p>
+                </div>
+                <div className="funnel-steps">
+                  <div className="funnel-step">
+                    <div className="step-circle blue">1</div>
+                    <div className="step-content">
+                      <strong>Inbound Intake</strong>
+                      <p>{metrics.total} total inquiries captured</p>
+                    </div>
+                  </div>
+
+                  <div className="funnel-step">
+                    <div className="step-circle purple">2</div>
+                    <div className="step-content">
+                      <strong>AI Triaged & Drafted</strong>
+                      <p>100% automated draft responses generated</p>
+                    </div>
+                  </div>
+
+                  <div className="funnel-step">
+                    <div className="step-circle amber">3</div>
+                    <div className="step-content">
+                      <strong>Human Review & Edits</strong>
+                      <p>{analyticsData.approvedTotal} approved · {analyticsData.rejectedCount} rejected</p>
+                    </div>
+                  </div>
+
+                  <div className="funnel-step">
+                    <div className="step-circle green">4</div>
+                    <div className="step-content">
+                      <strong>Delivered to Recipient</strong>
+                      <p>{metrics.sent || 0} response emails successfully dispatched</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : activeTab === 'audit' ? (
-          /* VIEW 2: AUDIT TRAIL */
+          /* VIEW 3: AUDIT TRAIL */
           <section className="card full-width">
             <div className="card-header space-between">
               <div>
@@ -563,7 +733,7 @@ function App() {
             </div>
           </section>
         ) : (
-          /* VIEW 3: INQUIRIES & APPROVALS (DUAL COLUMN WITH SEARCH & FILTERS) */
+          /* VIEW 4: INQUIRIES & APPROVALS (DUAL COLUMN WITH SEARCH & FILTERS) */
           <div className="content-columns">
             {/* Customer Intake Form */}
             <section className="card form-panel">

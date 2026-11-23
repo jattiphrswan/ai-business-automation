@@ -1077,6 +1077,161 @@ button, input, textarea {
   background-color: var(--primary-subtle);
 }
 
+/* Analytics & SLA Dashboard */
+.analytics-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.analytics-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.kpi-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.kpi-card h3 {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.03em;
+  margin-top: 4px;
+}
+
+.kpi-card p {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.text-amber { color: #f59e0b; }
+.text-danger { color: #ef4444; }
+.text-primary { color: #4f46e5; }
+.text-success { color: #10b981; }
+
+.analytics-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.category-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bar-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.bar-label {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.bar-count {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.bar-track {
+  width: 100%;
+  height: 9px;
+  background-color: #f1f5f9;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.4s ease;
+}
+
+.bar-fill.cat-billing { background-color: #f59e0b; }
+.bar-fill.cat-sales { background-color: #3b82f6; }
+.bar-fill.cat-support { background-color: #ef4444; }
+.bar-fill.cat-account { background-color: #8b5cf6; }
+.bar-fill.cat-general { background-color: #10b981; }
+
+.funnel-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.funnel-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background-color: #f8fafc;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+}
+
+.step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.step-circle.blue { background-color: #2563eb; }
+.step-circle.purple { background-color: #7c3aed; }
+.step-circle.amber { background-color: #d97706; }
+.step-circle.green { background-color: #059669; }
+
+.step-content strong {
+  font-size: 0.9rem;
+  color: var(--text-main);
+  display: block;
+}
+
+.step-content p {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
 /* Audit Timeline */
 .audit-timeline {
   display: flex;
@@ -1422,6 +1577,12 @@ button, input, textarea {
   .metrics-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  .analytics-kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .analytics-charts-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1448,6 +1609,10 @@ button, input, textarea {
   }
 
   .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-kpi-row {
     grid-template-columns: 1fr;
   }
 
